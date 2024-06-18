@@ -1,7 +1,11 @@
 const express = require('express');
 const { User, generateToken } = require('../Model/userModel.js');
+const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer')
+const jwt = require('jsonwebtoken');
 
+dotenv.config()
 
 const router = express.Router();
 
@@ -56,6 +60,112 @@ router.post("/login",async(req,res)=>{
         res.status(500).json({message:"Internal Server Error"})
     }
 })
+
+//forget code
+
+router.post('/forget-password',async(req,res)=>{
+    try {
+        let user = await User.findOne({email:req.body.email});
+        if(!user){
+            res.status(400).json({message:"User not exists"})
+        }
+        if(!req.body.email){
+            res.status(400).json({message:"Email Required"})
+        }
+        const secret = user.password + process.env.Secret_key;
+        const token = jwt.sign({_id:user.id,email:user.email},secret,{expiresIn:"5m"})
+        const link = `http://localhost:3000/reset/${user._id}/${token}`
+
+        const transporter = nodemailer.createTransport({
+            service:"gmail",
+            secure:false,
+            auth:{
+                user:process.env.Mail,
+                pass:process.env.Mail_Pass
+            }
+        })
+        const details = {
+            from:process.env.User,
+            to:req.body.email,
+            subject:"Password Reset",
+            text:link
+        }
+        transporter.sendMail(details,(err)=>{
+            if(err){
+                console.log('error occured in Email send')
+            }
+            console.log("Email send successfully")
+        })
+        res.json(link)
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal Server Error"})
+    }
+})
+
+//reset password
+
+router.put("/reset-password/:id/:token",async(req,res)=>{
+    const {password}=req.body;
+    const {token}=req.params;
+    try {
+        let userDetails = await User.findOne({_id:req.params.id})
+        if(!userDetails){
+            res.status(400).json({message:'User not Exists'})
+        }
+        if(!req.body.password){
+            res.status(400).json({message:"All credentials are required"})
+        }
+        const secret = userDetails.password + process.env.Secret_key
+        const verify = jwt.verify(token,secret)
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password,salt);
+        const user = await User.findOneAndUpdate(
+            {_id:req.params.id},
+            {$set:{
+                password:hashedPassword
+            }},
+            {new:true}
+        ) 
+        res.status(200).json({message:"Password reset successfully",email:user.email,status:"verified",user})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal Server Error"})
+    }
+})
+
+// get all user code
+
+router.get("/getall",async(req,res)=>{
+    try {
+        const user = await User.find({})
+        if(!user){
+            res.status(400).json({message:"Data not Found"})
+        }
+        res.status(200).json({message:"Data found successfully",user})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal Server Error"})
+    }
+})
+
+//get single user code
+
+router.get("/get/:id",async(req,res)=>{
+    try {
+        const user = await User.findOne({_id:req.params.id})
+        if(!user){
+            res.status(400).json({messsage:"Data not found"})
+        }
+        res.status(200).json({message:"Data found successfully",user})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal Server Error"})
+    }
+})
+
+
+
 const userRouter = router;
 
 module.exports={userRouter}
