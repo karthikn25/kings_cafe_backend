@@ -22,6 +22,7 @@ app.use(bodyParser.json());
 
 app.use("/uploads",express.static(path.join(__dirname,"uploads")));
 
+
 app.use("/user",userRouter)
 
 const PORT = process.env.PORT || 8080;

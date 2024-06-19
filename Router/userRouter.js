@@ -18,6 +18,8 @@ const upload = multer({
     })
 })
 
+
+
 dotenv.config()
 
 const router = express.Router();
@@ -176,33 +178,33 @@ router.get("/get/:id",async(req,res)=>{
     }
 })
 
-router.put("/edit/:id",upload.single("avatar"),async(req,res)=>{
+router.put('/edit/:id',upload.single('avatar'),async(req,res)=>{
     try {
         let avatar;
-        let {name}=req.body;
-        let BASE_URL = process.env.Backend_url;
-        if(process.env.NODE_ENV === "production"){
-            BASE_URL=`${req.protocol}://${req.get("host")}`;
+        const {name}=req.body;
+        const BASE_URL = process.env.Backend_Url;
+        if(process.env.NODE_ENV==="production"){
+            BASE_URL = `${req.protocol}://${req.get("host")}`
         }
-         if(req.file){
-            avatar=`${BASE_URL}/uploads/user/${req.file.originalname}`;
-         }
-
-         let user = await User.findByIdAndUpdate(
+        if(req.file){
+            avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`
+        }
+        const user = await User.findByIdAndUpdate(
             req.params.id,
             {name,avatar},
             {new:true}
-         )
-         if(!user){
-            res.status(400).json({message:"Data not valid"})
-         }
-         res.status(200).json({message:"User updated successfully",user})
-
+        )
+        if(!user){
+            res.status(400).json({message:"Error occured in Update"})
+        }
+        res.status(200).json({message:"User Update Successfully",user})
     } catch (error) {
         console.log(error);
         res.status(500).json({message:"Internal Server Error"})
     }
 })
+
+
 
 
 const userRouter = router;
