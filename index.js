@@ -4,6 +4,7 @@ const { dbConnection } = require('./db.js');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { userRouter } = require('./Router/userRouter.js');
+const path = require('path');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -18,6 +19,8 @@ dbConnection
 app.use(express.json());
 
 app.use(bodyParser.json());
+
+app.use("/uploads",express.static(path.join(__dirname,"uploads")));
 
 app.use("/user",userRouter)
 

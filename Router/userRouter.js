@@ -4,6 +4,19 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+
+const upload = multer({
+    storage:multer.diskStorage({
+        destination:function(req,file,cb){
+            cb(null,path.join(__dirname,"..","uploads/user"))
+        },
+        filename:function(req,file,cb){
+            cb(null,file.originalname)
+        }
+    })
+})
 
 dotenv.config()
 
@@ -124,8 +137,7 @@ router.put("/reset-password/:id/:token",async(req,res)=>{
             {_id:req.params.id},
             {$set:{
                 password:hashedPassword
-            }},
-            {new:true}
+            }}
         ) 
         res.status(200).json({message:"Password reset successfully",email:user.email,status:"verified",user})
     } catch (error) {
@@ -164,6 +176,33 @@ router.get("/get/:id",async(req,res)=>{
     }
 })
 
+router.put("/edit/:id",upload.single("avatar"),async(req,res)=>{
+    try {
+        let avatar;
+        let {name}=req.body;
+        let BASE_URL = process.env.Backend_url;
+        if(process.env.NODE_ENV === "production"){
+            BASE_URL=`${req.protocol}://${req.get("host")}`;
+        }
+         if(req.file){
+            avatar=`${BASE_URL}/uploads/user/${req.file.originalname}`;
+         }
+
+         let user = await User.findByIdAndUpdate(
+            req.params.id,
+            {name,avatar},
+            {new:true}
+         )
+         if(!user){
+            res.status(400).json({message:"Data not valid"})
+         }
+         res.status(200).json({message:"User updated successfully",user})
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal Server Error"})
+    }
+})
 
 
 const userRouter = router;
