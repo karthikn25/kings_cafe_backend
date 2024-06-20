@@ -12,13 +12,23 @@ dotenv.config();
 
 const app = express();
 
+
+
+
+
 app.use(cors());
 
 dbConnection
 
 app.use(express.json());
 
+app.use(bodyParser.json({ limit: '150mb' }));
+app.use(bodyParser.urlencoded({ limit: '150mb', extended: true }));
+
 app.use(bodyParser.json());
+
+
+
 
 app.use("/uploads",express.static(path.join(__dirname,"uploads")));
 

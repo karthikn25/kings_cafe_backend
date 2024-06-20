@@ -7,7 +7,8 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 
-const upload = multer({
+
+  const upload = multer({
     storage:multer.diskStorage({
         destination:function(req,file,cb){
             cb(null,path.join(__dirname,"..","uploads/user"))
@@ -181,7 +182,6 @@ router.get("/get/:id",async(req,res)=>{
 router.put('/edit/:id',upload.single('avatar'),async(req,res)=>{
     try {
         let avatar;
-        const {name}=req.body;
         const BASE_URL = process.env.Backend_Url;
         if(process.env.NODE_ENV==="production"){
             BASE_URL = `${req.protocol}://${req.get("host")}`
@@ -191,9 +191,12 @@ router.put('/edit/:id',upload.single('avatar'),async(req,res)=>{
         }
         const user = await User.findByIdAndUpdate(
             req.params.id,
-            {name,avatar},
+            {
+                ...req.body,
+                avatar
+            },
             {new:true}
-        )
+        );
         if(!user){
             res.status(400).json({message:"Error occured in Update"})
         }
