@@ -16,6 +16,6 @@ const dataBaseConnection = async()=>{
     }
 }
 
-const dbConnection = dataBaseConnection();
+const dbConnection = dataBaseConnection;
 
 module.exports={dbConnection}

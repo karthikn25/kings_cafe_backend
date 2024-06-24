@@ -33,6 +33,6 @@ return jwt.sign({id},process.env.Secret_key)
 }
 
 
-const User = mongoose.model('user',userSchema);
+const User = mongoose.model('User',userSchema);
 
 module.exports={User,generateToken}
