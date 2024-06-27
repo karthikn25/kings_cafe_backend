@@ -90,6 +90,20 @@ router.delete("/remove/:id",async(req,res)=>{
         res.status(200).json({message:"Internal server error"})
     }
 })
+let imageStatus = {
+    status: true, // true means image is clear, false means image is blurred
+    message: "Available" // default message
+};
+
+router.get('/status', (req, res) => {
+    res.json({ status: imageStatus });
+});
+
+router.post('/toggle', (req, res) => {
+    imageStatus.status = !imageStatus.status;
+    imageStatus.message = imageStatus.status ? "Available" : "Sold Out";
+    res.json(imageStatus);
+});
 
 router.put("/edit/:id",upload.single("photo"),async(req,res)=>{
     try {
@@ -115,6 +129,24 @@ router.put("/edit/:id",upload.single("photo"),async(req,res)=>{
         }
         res.status(200).json({message:"Food updated successfully",status:"verified",food})
         
+    } catch (error) {
+        console.log(error)
+        res.status(200).json({message:"Internal server error"})
+    }
+})
+
+router.get("/search/:keyword",async(req,res)=>{
+    try {
+        const {keyword}=req.params;
+        const food = await Food.find({
+                $or:[
+                    {foodName:{$regex:keyword,$options:"i"}},
+                ]
+            }).populate("user","-password").populate("category")
+        if(!food){
+            res.status(400).json({message:"Food is not available"})
+        }
+        res.status(200).json({message:"Food found successfully",food})
     } catch (error) {
         console.log(error)
         res.status(200).json({message:"Internal server error"})

@@ -58,7 +58,18 @@ router.get('/get',async(req,res)=>{
     }
 })
 
-
+router.delete("/remove/:id",async(req,res)=>{
+    try {
+        const category = await Category.findByIdAndDelete({_id:req.params.id});
+        if(!category){
+            res.status(400).json({message:"Error occured in deletion"})
+        }
+        res.status(200).json({message:"Category deleted successfully"})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal server error"})
+    }
+})
 
 const categoryRouter  = router;
 
