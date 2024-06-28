@@ -33,7 +33,7 @@ router.post("/create/:id",upload.single("photo"),async(req,res)=>{
             BASE_URL = `${req.protocol}://${req.get("host")}`
         }
         if(req.file){
-            photo = `${BASE_URL}/uploads/photo/${req.file.originalname}`
+            photo = `${BASE_URL}/uploads/food/${req.file.originalname}`
         }
         const food = new Food({
             ...req.body,
