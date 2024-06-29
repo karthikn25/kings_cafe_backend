@@ -80,11 +80,11 @@ router.get("/getall",async(req,res)=>{
 
 router.delete("/remove/:id",async(req,res)=>{
     try {
-        const food = await Food.findOne({_id:req.params.id});
+        const food = await Food.findByIdAndDelete({_id:req.params.id});
         if(!food){
             res.status(400).json({message:"Data not removed"})
         }
-        res.status(200).json({message:"Data removed successfully"})
+        res.status(200).json({message:"Data removed successfully",food})
     } catch (error) {
         console.log(error)
         res.status(200).json({message:"Internal server error"})
@@ -92,17 +92,27 @@ router.delete("/remove/:id",async(req,res)=>{
 })
 let imageStatus = {
     status: true, // true means image is clear, false means image is blurred
-    message: "Available" // default message
+    message: "Available" ,// default message
+
 };
 
-router.get('/status', (req, res) => {
-    res.json({ status: imageStatus });
+router.get('/status', async(req, res) => {
+    const food = await Food.find({});
+    if(!food){
+     res.status(400).json({message:"Error occured"})
+    }
+    const data = food.map((d)=>d.status)
+    res.status(200).json({message:"Data found successfully",status: data,food})
 });
 
-router.post('/toggle', (req, res) => {
-    imageStatus.status = !imageStatus.status;
-    imageStatus.message = imageStatus.status ? "Available" : "Sold Out";
-    res.json(imageStatus);
+router.put('/toggle/:id', async(req, res) => {
+    const food = await Food.findById(req.params.id);
+    if (!food) {
+        return res.status(404).json({ message: 'Food item not found' });
+    }
+    food.status = !food.status;
+    await food.save();
+    res.json(food);
 });
 
 router.put("/edit/:id",upload.single("photo"),async(req,res)=>{
