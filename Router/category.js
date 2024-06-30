@@ -64,7 +64,7 @@ router.delete("/remove/:id",async(req,res)=>{
         if(!category){
             res.status(400).json({message:"Error occured in deletion"})
         }
-        res.status(200).json({message:"Category deleted successfully"})
+        res.status(200).json({message:"Category deleted successfully",category})
     } catch (error) {
         console.log(error);
         res.status(500).json({message:"Internal server error"})

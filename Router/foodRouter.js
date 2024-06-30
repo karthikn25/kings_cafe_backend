@@ -90,20 +90,6 @@ router.delete("/remove/:id",async(req,res)=>{
         res.status(200).json({message:"Internal server error"})
     }
 })
-let imageStatus = {
-    status: true, // true means image is clear, false means image is blurred
-    message: "Available" ,// default message
-
-};
-
-router.get('/status', async(req, res) => {
-    const food = await Food.find({});
-    if(!food){
-     res.status(400).json({message:"Error occured"})
-    }
-    const data = food.map((d)=>d.status)
-    res.status(200).json({message:"Data found successfully",status: data,food})
-});
 
 router.put('/toggle/:id', async(req, res) => {
     const food = await Food.findById(req.params.id);
