@@ -29,9 +29,9 @@ app.use("/uploads",express.static(path.join(__dirname,"uploads")));
 
 app.use("/user",userRouter)
 
-app.use("/food",isAuth,foodRouter)
+app.use("/food",foodRouter)
 
-app.use("/category",isAuth,categoryRouter)
+app.use("/category",categoryRouter)
 
 app.listen(PORT,(()=>console.log(`localhost running under :${PORT}`)))
 
