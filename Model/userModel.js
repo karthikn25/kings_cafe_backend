@@ -1,38 +1,19 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
-
-dotenv.config();
-
 
 const userSchema = new mongoose.Schema({
-    name:{
-        type:String,
-        required:true,
-        trim:true
-    },
-    email:{
-        type:String,
-        required:true,
-        trim:true
-    },
-    password:{
-        type:String,
-        required:true,
-        trim:true,
-        minLen:8,
-        maxLen:16
-    },
-    avatar:{
-        type:String
-    }
-})
+    username: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    avatar: { type: String },
+    otp: { type: String },
+    otpExpires: { type: Date },
+}, { timestamps: true });
 
-const generateToken=(id)=>{
-return jwt.sign({id},process.env.Secret_key)
+const generateToken = (id)=>{
+    return jwt.sign({id},process.env.JWT_SECRET);
 }
 
+const User = mongoose.model('User', userSchema);
 
-const User = mongoose.model('User',userSchema);
-
-module.exports={User,generateToken}
+module.exports = {User,generateToken};

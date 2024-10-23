@@ -2,10 +2,10 @@ const express = require('express');
 const dotenv = require('dotenv');
 const { dbConnection } = require('./db.js');
 const cors = require('cors');
-const { userRouter } = require('./Router/userRouter.js');
 const path = require('path');
 const { foodRouter } = require('./Router/foodRouter.js');
 const { categoryRouter } = require('./Router/category.js');
+const { userRouter } = require('./Router/userRouter.js');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 

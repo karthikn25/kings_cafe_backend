@@ -1,215 +1,304 @@
 const express = require('express');
-const { User, generateToken } = require('../Model/userModel.js');
 const dotenv = require('dotenv');
+const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer')
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const path = require("path");
+const { generateToken } = require('../Model/userModel');
 const multer = require('multer');
-const path = require('path');
+const { User } = require('../Model/userModel');
+const cloudinary = require('cloudinary').v2;
 
-
-  const upload = multer({
-    storage:multer.diskStorage({
-        destination:function(req,file,cb){
-            cb(null,path.join(__dirname,"..","uploads/user"))
-        },
-        filename:function(req,file,cb){
-            cb(null,file.originalname)
-        }
-    })
-})
-
-
-
-dotenv.config()
+dotenv.config();
 
 const router = express.Router();
 
 
-// signup code
-router.post("/signup",async(req,res)=>{
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = multer.memoryStorage();
+const uploads = multer({ storage });
+
+
+
+// Nodemailer configuration
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASSWORD
+    },
+    tls: {
+        rejectUnauthorized: false,
+    },
+});
+
+// Routes
+const tempOtpStore = {};
+
+router.post('/register', async (req, res) => {
+    const { username, email, password } = req.body;
+
     try {
-        let user = await User.findOne({email:req.body.email})
-        if(user){
-            res.status(400).json({message:"User Already Exist"})
-        }
-        if(!req.body.name || !req.body.email || !req.body.password){
-            res.status(400).json({message:"All credentials are required"})
+        // Check if user already exists
+        let user = await User.findOne({ email });
+        if (user) {
+            return res.status(400).json({ msg: 'User already exists' });
         }
 
-        const salt = await bcrypt.genSalt(10);
+        // Validate input
+        if (!username || !email || !password) {
+            return res.status(400).json({ msg: 'Please provide username, email, and password' });
+        }
 
-        const hashedPassword = await bcrypt.hash(req.body.password,salt)
+        // Generate OTP
+        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit OTP
+        const otpExpires = Date.now() + 300000; // 5 minutes
 
-        user = await new User({
-            name:req.body.name,
-            email:req.body.email,
-            password:hashedPassword
-        }).save()
+        // Send OTP email
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: 'OTP for account verification',
+            text: `Your OTP is ${generatedOtp}`
+        };
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        transporter.sendMail(mailOptions, (error) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ msg: 'Error sending email' });
+            } else {
+                tempOtpStore[email] = {
+                    otp: generatedOtp,
+                    otpExpires,
+                    username,
+                    email,
+                    password: hashedPassword,
+                };
+                return res.status(200).json({ msg: 'OTP sent to email' });
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+router.post('/verify-otp', async (req, res) => {
+    const { email, otp } = req.body;
+
+    try {
+        const tempUser = tempOtpStore[email];
+        if (!tempUser || tempUser.otp !== otp || tempUser.otpExpires < Date.now()) {
+            return res.status(400).json({ msg: 'Invalid or expired OTP' });
+        }
+
+        const user = new User({
+            username: tempUser.username,
+            email: tempUser.email,
+            password: tempUser.password,
+        });
+
+        await user.save();
+
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        delete tempOtpStore[email];
+
+        res.status(200).json({ msg: 'User registered successfully', token, user });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+router.post("/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "All credentials are required" });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "User does not exist" });
+        }
+
+        const comparePassword = await bcrypt.compare(password, user.password);
+        if (!comparePassword) {
+            return res.status(400).json({ message: "Password incorrect" });
+        }
 
         const token = generateToken(user._id);
-        res.status(200).json({message:"Signup Successfully",user,token})
+        return res.status(200).json({ message: "Login successfully", token, user });
+        
     } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
+        console.error(error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
-})
+});
 
-// login code
-router.post("/login",async(req,res)=>{
+router.post("/forget", async (req, res) => {
     try {
-        let user = await User.findOne({email:req.body.email})
-        if(!user){
-            res.status(400).json({message:"User not Exist"})
+        let user = await User.findOne({ email: req.body.email });
+        if (!user) {
+            res.status(400).json({ message: "User not exists" });
         }
-        if(!req.body.email || !req.body.password){
-            res.status(400).json({message:"All credentials are Required"})
+        if (!req.body.email) {
+            res.status(400).json({ message: "All credentials are required" });
         }
-        const verify = await bcrypt.compare(req.body.password,user.password);
-        if(!verify){
-            res.status(400).json({message:"Password Incorrect"})
-        } 
-        const token = generateToken(user._id);
-        res.status(200).json({message:"Login Successfully",user,token})
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
-    }
-})
-
-//forget code
-
-router.post('/forget-password',async(req,res)=>{
-    try {
-        let user = await User.findOne({email:req.body.email});
-        if(!user){
-            res.status(400).json({message:"User not exists"})
-        }
-        if(!req.body.email){
-            res.status(400).json({message:"Email Required"})
-        }
-        const secret = user.password + process.env.Secret_key;
-        const token = jwt.sign({_id:user.id,email:user.email},secret,{expiresIn:"5m"})
-        const link = `http://localhost:3000/reset/${user._id}/${token}`
-
-        const transporter = nodemailer.createTransport({
-            service:"gmail",
-            secure:false,
-            auth:{
-                user:process.env.Mail,
-                pass:process.env.Mail_Pass
-            }
-        })
-        const details = {
-            from:process.env.User,
-            to:req.body.email,
-            subject:"Password Reset",
-            text:link
-        }
-        transporter.sendMail(details,(err)=>{
-            if(err){
-                console.log('error occured in Email send')
-            }
-            console.log("Email send successfully")
-        })
-        res.json(link)
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
-    }
-})
-
-//reset password
-
-router.put("/reset-password/:id/:token",async(req,res)=>{
-    const {password}=req.body;
-    const {token}=req.params;
-    try {
-        let userDetails = await User.findOne({_id:req.params.id})
-        if(!userDetails){
-            res.status(400).json({message:'User not Exists'})
-        }
-        if(!req.body.password){
-            res.status(400).json({message:"All credentials are required"})
-        }
-        const secret = userDetails.password + process.env.Secret_key
-        const verify = jwt.verify(token,secret)
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password,salt);
-        const user = await User.findOneAndUpdate(
-            {_id:req.params.id},
-            {$set:{
-                password:hashedPassword
-            }}
-        ) 
-        res.status(200).json({message:"Password reset successfully",email:user.email,status:"verified",user})
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
-    }
-})
-
-// get all user code
-
-router.get("/getall",async(req,res)=>{
-    try {
-        const user = await User.find({})
-        if(!user){
-            res.status(400).json({message:"Data not Found"})
-        }
-        res.status(200).json({message:"Data found successfully",user})
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
-    }
-})
-
-//get single user code
-
-router.get("/get/:id",async(req,res)=>{
-    try {
-        const user = await User.findOne({_id:req.params.id})
-        if(!user){
-            res.status(400).json({messsage:"Data not found"})
-        }
-        res.status(200).json({message:"Data found successfully",user})
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
-    }
-})
-
-router.put('/edit/:id',upload.single('avatar'),async(req,res)=>{
-    try {
-        let avatar;
-        const BASE_URL = process.env.Backend_Url;
-        if(process.env.NODE_ENV==="production"){
-            BASE_URL = `${req.protocol}://${req.get("host")}`
-        }
-        if(req.file){
-            avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`
-        }
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            {
-                ...req.body,
-                avatar
-            },
-            {new:true}
+        const secret = user.password + process.env.JWT_SECRET;
+        const token = jwt.sign(
+            { _id: user._id, email: user.email },
+            secret,
+            { expiresIn: "5m" }
         );
-        if(!user){
-            res.status(400).json({message:"Error occured in Update"})
-        }
-        res.status(200).json({message:"User Update Successfully",user})
+        const link = `http://localhost:3000/reset/${user._id}/${token}`;
+        const details = {
+            from: process.env.USER,
+            to: req.body.email,
+            subject: "Reset Password",
+            text: link
+        };
+        transporter.sendMail(details, (err) => {
+            if (err) {
+                console.log("Error occurred in sending Email", err);
+            }
+            console.log("Email sent successfully");
+        });
+        res.json(link);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal Server Error"})
+        console.error(error);
+        res.status(500).send('Internal Server Error');
     }
-})
+});
+
+router.put("/reset-password/:id/:token", async (req, res) => {
+    const { token } = req.params;
+    const { password } = req.body;
+    try {
+        let userData = await User.findOne({ _id: req.params.id });
+        if (!userData) {
+            res.status(400).json({ message: "User doesn't exist" });
+        }
+        if (!password) {
+            res.status(400).json({ message: "All credentials are required" });
+        }
+        const secret = userData.password + process.env.JWT_SECRET;
+        const verify = jwt.verify(token, secret);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        const user = await User.findOneAndUpdate(
+            { _id: req.params.id },
+            {
+                $set: {
+                    password: hashedPassword,
+                },
+            }
+        );
+        res.status(200).json({ message: "Password Reset Successfully", email: verify.email, status: "verified", user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+router.get("/allusers", async (req, res) => {
+    try {
+        const users = await User.find({});
+        if (!users) {
+            res.status(400).json({ message: "Error occurred to find data" });
+        }
+        res.status(200).json({ message: "Data found successfully", users });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+router.get("/getuser/:id", async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).populate('address'); // Ensure 'address' matches your User model
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+        res.status(200).json({ message: "Data found successfully", user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+router.delete("/remove/:id", async (req, res) => {
+    try {
+        const user = await User.findOneAndDelete({ _id: req.params.id });
+        if (!user) {
+            res.status(400).json({ message: "Data remove error" });
+        }
+        res.status(200).json({ message: "Successfully data removed" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Update user avatar using Cloudinary
+router.put("/edit/:id", uploads.single("avatar"), async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        let avatarUrl;
+
+        // If a new avatar file is uploaded, upload it to Cloudinary
+        if (req.file) {
+            // Create a new Promise to handle the upload
+            avatarUrl = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream({
+                    resource_type: "image",
+                    folder: 'users', // Specify a folder in Cloudinary
+                }, (error, result) => {
+                    if (error) {
+                        return reject(new Error("Error uploading image to Cloudinary."));
+                    }
+                    resolve(result.secure_url); // Resolve with the secure URL
+                });
+
+                // End the stream with the buffer
+                uploadStream.end(req.file.buffer);
+            });
+        }
+
+        // Update fields
+        user.username = req.body.username || user.username; // Update username if provided
+        user.email = req.body.email || user.email; // Update email if provided
+        user.avatar = avatarUrl || user.avatar; // Update avatar if a new file is uploaded
+
+        const updatedUser = await user.save();
+
+        res.status(200).json({ message: "User updated successfully", user: updatedUser });
+    } catch (error) {
+        console.error("Error updating user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 
 
 
 const userRouter = router;
 
-module.exports={userRouter}
+module.exports = { userRouter };
