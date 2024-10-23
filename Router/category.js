@@ -1,76 +1,74 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 const dotenv = require('dotenv');
 const { Category } = require('../Model/category');
-const { json } = require('body-parser');
 
 dotenv.config();
 
 const router = express.Router();
 
-const upload = multer({
-    storage:multer.diskStorage({
-        destination:function(req,file,cb){
-            cb(null,path.join(__dirname,"..","/uploads/category"))
-        },
-        filename:function(req,file,cb){
-            cb(null,file.originalname)
-        }
-    })
-})
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-router.post("/create",upload.single("picture"),async(req,res)=>{
+// Configure multer storage with Cloudinary
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'category', // Cloudinary folder name
+        allowed_formats: ['jpg', 'png', 'jpeg'],
+    },
+});
+
+const upload = multer({ storage });
+
+router.post("/create", upload.single("picture"), async (req, res) => {
     try {
-     let picture;
-     const BASE_URL = process.env.Backend_Url;
-     if(process.env.NODE_ENV==='production'){
-        BASE_URL = `${req.protocol}://${req.get("host")}`
-     }   
-     if(req.file){
-        picture = `${BASE_URL}/uploads/category/${req.file.originalname}`
-     }
-     const category = new Category({
-        ...req.body,
-        picture
-     })
-     await category.save()
-     if(!category){
-        res.status(400).json({message:"Category not created"})
-     }
-     res.status(200).json({message:"Category created successfully",category})
+        const category = new Category({
+            ...req.body,
+            picture: req.file.path, // Cloudinary URL
+        });
+        
+        await category.save();
+        
+        res.status(200).json({ message: "Category created successfully", category });
     } catch (error) {
         console.log(error);
-        res.status(500).json({message:"Internal server error"})
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-router.get('/get',async(req,res)=>{
+router.get('/get', async (req, res) => {
     try {
         const category = await Category.find({});
-        if(!category){
-            res.status(400).json({message:"Data not found"})
+        if (!category) {
+            return res.status(400).json({ message: "Data not found" });
         }
-        res.status(200).json({message:"Data found successfully",category})
+        res.status(200).json({ message: "Data found successfully", category });
     } catch (error) {
         console.log(error);
-        res.status(500).json({message:"Internal server error"})
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-router.delete("/remove/:id",async(req,res)=>{
+router.delete("/remove/:id", async (req, res) => {
     try {
-        const category = await Category.findByIdAndDelete({_id:req.params.id});
-        if(!category){
-            res.status(400).json({message:"Error occured in deletion"})
+        const category = await Category.findByIdAndDelete(req.params.id);
+        if (!category) {
+            return res.status(400).json({ message: "Error occurred in deletion" });
         }
-        res.status(200).json({message:"Category deleted successfully",category})
+        res.status(200).json({ message: "Category deleted successfully", category });
     } catch (error) {
         console.log(error);
-        res.status(500).json({message:"Internal server error"})
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-const categoryRouter  = router;
+const categoryRouter = router;
 
-module.exports = {categoryRouter}
+module.exports = { categoryRouter };
