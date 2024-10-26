@@ -95,6 +95,19 @@ router.get("/getall", async (req, res) => {
     }
 });
 
+router.get("/getsingle/:p_id",async(req,res)=>{
+    try {
+        const food = await Food.findOne(req.params.p_id);
+        if(!food){
+            res.status(400).json({message:"Data not Found"})
+        }
+        res.status(200).json({message:"Data found successfully",food})
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+    }
+})
+
+
 router.delete("/remove/:id", async (req, res) => {
     try {
         const food = await Food.findByIdAndDelete(req.params.id);
