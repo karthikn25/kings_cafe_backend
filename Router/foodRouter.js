@@ -55,6 +55,7 @@ router.post("/create/:c_id/:id", upload.single("photo"), async (req, res) => {
             foodName,
             price,
             details,
+            photo,
             user:req.params.id,
             category:category.id
         }
