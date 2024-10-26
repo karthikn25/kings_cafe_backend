@@ -4,6 +4,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
 const { Food } = require('../Model/foodModel');
 const { Category } = require('../Model/category');
+const { User } = require('../Model/userModel');
 
 const router = express.Router();
 
@@ -25,28 +26,42 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-router.post("/create/:id", upload.single("photo"), async (req, res) => {
+router.post("/create/:c_id/:id", upload.single("photo"), async (req, res) => {
     try {
-        const category = await Category.findById(req.params.id);
-        if (!category) {
-            return res.status(400).json({ message: "Category not found" });
+        const {foodName,price,details}=req.body;
+        if(!foodName || !price || !details){
+            return res.status(400).json({message:"All credentials Required"})
         }
-        
+
         let photo;
         if (req.file) {
             photo = req.file.path; // Cloudinary URL
         }
 
-        const food = new Food({
-            ...req.body,
-            photo,
-            user: req.user,
-            category: category.id,
-        });
+        const category = await Category.findById(req.params.c_id);
+        if (!category) {
+            return res.status(400).json({ message: "Category not found" });
+        }
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(403).json({ message: "You are not authorized to create this food item." });
+        }
+        const existingFood = await Food.findOne({ foodName });
+        if (existingFood) {
+            return res.status(400).json({ message: "A food item with this name already exists." });
+        }
+
+        const foodData = {
+            foodName,
+            price,
+            details,
+            user:req.params.id,
+            category:category.id
+        }
+
+        const food = await Food.create(foodData);
+        res.status(201).json({ message: "Food created successfully", food });
         
-        await food.save();
-        
-        res.status(200).json({ message: "Food created successfully", food });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal server Error" });
