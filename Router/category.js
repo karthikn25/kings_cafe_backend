@@ -29,25 +29,25 @@ const upload = multer({ storage });
 
 router.post("/create", upload.single("picture"), async (req, res) => {
     try {
-        const existingCategory = await Category.find({name:req.body.name});
-        if(existingCategory){
-            res.status(400).json({message:"Category Already Exist"})
-        }else{
-            const category = new Category({
-                ...req.body,
-                picture: req.file.path, // Cloudinary URL
-            });
-            
-            await category.save();
-            
-            res.status(200).json({ message: "Category created successfully", category });
+        const existingCategory = await Category.find({ name: req.body.name });
+        if (existingCategory.length > 0) {
+            return res.status(400).json({ message: "Category Already Exists" });
         }
-       
+        
+        const category = new Category({
+            ...req.body,
+            picture: req.file.path, // Assuming this is the correct path for the picture
+        });
+
+        await category.save();
+        
+        res.status(201).json({ message: "Category created successfully", category });
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
 
 router.get('/get', async (req, res) => {
     try {
