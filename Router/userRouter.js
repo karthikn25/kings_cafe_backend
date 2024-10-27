@@ -162,7 +162,7 @@ router.post("/forget", async (req, res) => {
             secret,
             { expiresIn: "5m" }
         );
-        const link = `${process.env.Backend_url}/reset/${user._id}/${token}`;
+        const link = `http://localhost:3000/reset/${user._id}/${token}`;
         const details = {
             from: process.env.USER,
             to: req.body.email,
