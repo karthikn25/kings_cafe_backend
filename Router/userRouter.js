@@ -221,7 +221,7 @@ router.get("/allusers", async (req, res) => {
         res.status(200).json({ message: "Data found successfully", users });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        res.status(500).json({ message: 'Internal Server Error' })
     }
 });
 
