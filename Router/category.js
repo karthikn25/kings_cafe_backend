@@ -29,7 +29,7 @@ const upload = multer({ storage });
 
 router.post("/create", upload.single("picture"), async (req, res) => {
     try {
-        const existingCategory = await Category.find({ name: req.body.name });
+        const existingCategory = await Category.findOne({ name: req.body.name });
         if (existingCategory.length > 0) {
             return res.status(400).json({ message: "Category Already Exists" });
         }
