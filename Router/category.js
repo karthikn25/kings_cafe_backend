@@ -84,6 +84,27 @@ router.delete("/remove/:id", async (req, res) => {
     }
 });
 
+router.put("/categoryedit/:c_id",upload.single("picture"),async(req,res)=>{
+    try {
+        let picture;
+        if(req.file){
+            picture=req.file.path
+        }
+        const category = await Category.findByIdAndUpdate(
+            req.params.c_id,
+            {...req.body,picture},
+            {new:true}
+        )
+        if(!category){
+            res.status(400).json({message:"Category not updated"})
+        }
+        res.status(200).json({message:"Data updated successfully",category})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal server error"})
+    }
+})
+
 const categoryRouter = router;
 
 module.exports = { categoryRouter };
