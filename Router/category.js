@@ -85,24 +85,65 @@ router.delete("/remove/:id", async (req, res) => {
 });
 
 router.put("/categoryedit/:c_id",upload.single("picture"),async(req,res)=>{
+    // try {
+    //     let picture;
+    //     if(req.file){
+    //         picture=req.file.path
+    //     }
+    //     const category = await Category.findByIdAndUpdate(
+    //         req.params.c_id,
+    //         {...req.body,picture},
+    //         {new:true}
+    //     )
+    //     if(!category){
+    //         res.status(400).json({message:"Category not updated"})
+    //     }
+    //     res.status(200).json({message:"Data updated successfully",category})
+    // } catch (error) {
+    //     console.log(error);
+    //     res.status(500).json({message:"Internal server error"})
+    // }
     try {
-        let picture;
-        if(req.file){
-            picture=req.file.path
+        const categoryId = req.params.c_id; // Get category ID from URL parameters
+        const category = await Category.findById(categoryId);
+    
+        if (!category) {
+            return res.status(404).json({ message: "Category not found." });
         }
-        const category = await Category.findByIdAndUpdate(
-            req.params.c_id,
-            {...req.body,picture},
-            {new:true}
-        )
-        if(!category){
-            res.status(400).json({message:"Category not updated"})
+    
+        let pictureUrl;
+    
+        // If a new picture file is uploaded, upload it to Cloudinary
+        if (req.file) {
+            pictureUrl = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream({
+                    resource_type: "image",
+                    folder: 'categories', // Specify a folder in Cloudinary
+                }, (error, result) => {
+                    if (error) {
+                        return reject(new Error("Error uploading image to Cloudinary."));
+                    }
+                    resolve(result.secure_url); // Resolve with the secure URL of the image
+                });
+    
+                // End the stream with the file buffer
+                uploadStream.end(req.file.buffer);
+            });
         }
-        res.status(200).json({message:"Data updated successfully",category})
+    
+        // Update the category fields
+        category.name = req.body.name || category.name; // Update category name if provided
+        category.description = req.body.description || category.description; // Update description if provided
+        category.picture = pictureUrl || category.picture; // Update picture if a new one is uploaded
+    
+        const updatedCategory = await category.save();
+    
+        res.status(200).json({ message: "Category updated successfully", category: updatedCategory });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({message:"Internal server error"})
+        console.error("Error updating category:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
+    
 })
 
 const categoryRouter = router;
