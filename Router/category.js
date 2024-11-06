@@ -93,7 +93,7 @@ router.put("/categoryedit/:c_id", upload.single("picture"), async (req, res) => 
             return res.status(404).json({ message: "Category not found." });
         }
 
-        let pictureUrl = category.picture; // Default to the existing picture URL
+        let pictureUrl; // Default to the existing picture URL
 
         // If a new picture file is uploaded, upload it to Cloudinary
         if (req.file) {
