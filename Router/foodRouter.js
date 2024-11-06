@@ -97,7 +97,7 @@ router.get("/getall", async (req, res) => {
 
 router.get("/getsingle/:p_id",async(req,res)=>{
     try {
-        const food = await Food.findOne(req.params.p_id);
+        const food = await Food.findOne({_id:req.params.p_id});
         if(!food){
             res.status(400).json({message:"Data not Found"})
         }
