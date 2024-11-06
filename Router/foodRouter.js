@@ -131,29 +131,73 @@ router.put('/toggle/:id', async (req, res) => {
     res.json(food);
 });
 
+// router.put("/edit/:id", upload.single("photo"), async (req, res) => {
+//     try {
+//         let photo;
+//         if (req.file) {
+//             photo = req.file.path; // Cloudinary URL
+//         }
+
+//         const food = await Food.findByIdAndUpdate(
+//             req.params.id,
+//             { ...req.body, photo, user: req.user },
+//             { new: true } // Return the updated document
+//         );
+        
+//         if (!food) {
+//             return res.status(400).json({ message: "Error occurred in updating" });
+//         }
+        
+//         res.status(200).json({ message: "Food updated successfully", food });
+//     } catch (error) {
+//         console.log(error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// });
+
+
+
 router.put("/edit/:id", upload.single("photo"), async (req, res) => {
     try {
-        let photo;
-        if (req.file) {
-            photo = req.file.path; // Cloudinary URL
+        const foodId = req.params.id;
+        const food = await Food.findById(foodId);
+
+        if (!food) {
+            return res.status(404).json({ message: "Food not found." });
         }
 
-        const food = await Food.findByIdAndUpdate(
-            req.params.id,
-            { ...req.body, photo, user: req.user },
-            { new: true } // Return the updated document
-        );
-        
-        if (!food) {
-            return res.status(400).json({ message: "Error occurred in updating" });
+        let photoUrl = food.photo; // Default to the existing photo URL
+
+        // If a new photo file is uploaded, upload it to Cloudinary
+        if (req.file) {
+            try {
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    resource_type: "image",
+                    folder: 'foods', // You can change the folder as per your needs
+                });
+                photoUrl = result.secure_url; // Get the secure URL of the uploaded image
+            } catch (error) {
+                console.error("Cloudinary upload error:", error);
+                return res.status(500).json({ message: "Error uploading image to Cloudinary." });
+            }
         }
-        
-        res.status(200).json({ message: "Food updated successfully", food });
+
+        // Update the food details with the new information
+        food.foodName = req.body.foodName || food.foodName;
+        food.price = req.body.price || food.price;
+        food.details = req.body.details || food.details;
+        food.photo = photoUrl; // Updated photo URL (or existing if no new photo uploaded)
+        food.user = req.user; // Assuming `req.user` is the logged-in user who is updating the food item
+
+        const updatedFood = await food.save();
+
+        res.status(200).json({ message: "Food updated successfully", food: updatedFood });
     } catch (error) {
-        console.log(error);
+        console.error("Error updating food:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
 
 router.get("/search/:keyword", async (req, res) => {
     try {
