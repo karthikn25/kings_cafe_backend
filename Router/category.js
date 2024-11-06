@@ -111,7 +111,7 @@ router.put("/categoryedit/:c_id", upload.single("picture"), async (req, res) => 
 
         // Update the category with the new details
         category.name = req.body.name || category.name;
-        category.picture = pictureUrl; // Updated picture
+        category.picture = pictureUrl || category.picture; // Updated picture
 
         const updatedCategory = await category.save();
 
