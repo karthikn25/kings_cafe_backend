@@ -265,15 +265,20 @@ router.put("/edit/:id", uploads.single("avatar"), async (req, res) => {
 
         // If a new avatar file is uploaded, upload it to Cloudinary
         if (req.file) {
-            // Create a new Promise to handle the upload
+            // Check if file exists
+            console.log("File uploaded:", req.file);
+
+            // Upload the image to Cloudinary and get the URL
             avatarUrl = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream({
                     resource_type: "image",
                     folder: 'users', // Specify a folder in Cloudinary
                 }, (error, result) => {
                     if (error) {
+                        console.error("Cloudinary upload error:", error);
                         return reject(new Error("Error uploading image to Cloudinary."));
                     }
+                    console.log("Cloudinary upload result:", result);  // Log Cloudinary result to check if URL is correct
                     resolve(result.secure_url); // Resolve with the secure URL
                 });
 
@@ -285,9 +290,13 @@ router.put("/edit/:id", uploads.single("avatar"), async (req, res) => {
         // Update fields
         user.username = req.body.username || user.username; // Update username if provided
         user.email = req.body.email || user.email; // Update email if provided
-        user.avatar = avatarUrl || user.avatar; // Update avatar if a new file is uploaded
+        if (avatarUrl) {
+            user.avatar = avatarUrl; // Update avatar if a new file is uploaded
+        }
 
+        // Save the user data
         const updatedUser = await user.save();
+        console.log("Updated user:", updatedUser);  // Log the updated user object to ensure changes
 
         res.status(200).json({ message: "User updated successfully", user: updatedUser });
     } catch (error) {
