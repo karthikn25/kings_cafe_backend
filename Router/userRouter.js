@@ -227,7 +227,7 @@ router.get("/allusers", async (req, res) => {
 
 router.get("/getuser/:id", async (req, res) => {
     try {
-        const user = await User.findById(req.params.id).populate('address'); // Ensure 'address' matches your User model
+        const user = await User.findById(req.params.id); 
         if (!user) {
             return res.status(400).json({ message: "User not found" });
         }
