@@ -251,59 +251,44 @@ router.delete("/remove/:id", async (req, res) => {
     }
 });
 
-// Update user avatar using Cloudinary
+
 router.put("/edit/:id", uploads.single("avatar"), async (req, res) => {
     try {
-        const userId = req.params.id;
-        const user = await User.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found." });
-        }
-
-        let avatarUrl;
-
-        // If a new avatar file is uploaded, upload it to Cloudinary
-        if (req.file) {
-            // Check if file exists
-            console.log("File uploaded:", req.file);
-
-            // Upload the image to Cloudinary and get the URL
-            avatarUrl = await new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream({
-                    resource_type: "image",
-                    folder: 'users', // Specify a folder in Cloudinary
-                }, (error, result) => {
-                    if (error) {
-                        console.error("Cloudinary upload error:", error);
-                        return reject(new Error("Error uploading image to Cloudinary."));
-                    }
-                    console.log("Cloudinary upload result:", result);  // Log Cloudinary result to check if URL is correct
-                    resolve(result.secure_url); // Resolve with the secure URL
-                });
-
-                // End the stream with the buffer
-                uploadStream.end(req.file.buffer);
-            });
-        }
-
-        // Update fields
-        user.username = req.body.username || user.username; // Update username if provided
-        user.email = req.body.email || user.email; // Update email if provided
-        if (avatarUrl) {
-            user.avatar = avatarUrl; // Update avatar if a new file is uploaded
-        }
-
-        // Save the user data
-        const updatedUser = await user.save();
-        console.log("Updated user:", updatedUser);  // Log the updated user object to ensure changes
-
-        res.status(200).json({ message: "User updated successfully", user: updatedUser });
+      const userId = req.params.id;
+      const user = await User.findById(userId);
+  
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+  
+      let avatarUrl;
+      if (req.file) {
+        avatarUrl = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream({
+            resource_type: "image",
+            folder: 'users', 
+          }, (error, result) => {
+            if (error) {
+              return reject(new Error("Cloudinary upload error."));
+            }
+            resolve(result.secure_url);
+          });
+          uploadStream.end(req.file.buffer);
+        });
+      }
+  
+      user.username = req.body.username || user.username;
+      if (avatarUrl) {
+        user.avatar = avatarUrl; // Update the avatar URL
+      }
+  
+      const updatedUser = await user.save();
+      res.status(200).json({ message: "User updated successfully", user: updatedUser });
     } catch (error) {
-        console.error("Error updating user:", error);
-        res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
-});
+  });
+  
 
 
 
