@@ -22,6 +22,10 @@ app.use(express.static(path.join(__dirname, 'uploads'))); // Serve static files 
 // Connect to the database
 dbConnection();
 
+app.get("/ping",(req,res)=>{
+    res.status(200).send("Service wake up")
+})
+
 // Route handlers
 app.use("/user", userRouter);
 app.use("/food", foodRouter);
